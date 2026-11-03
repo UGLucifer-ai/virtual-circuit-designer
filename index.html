@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="color-scheme" content="dark"/>
+<link rel="icon" href="data:,"/>
+<title>Virtual Circuit Designer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--navy:#0b1e3a;--navy2:#12294d;--panel:#162c4fee;--cyan:#22d3ee;--cyan2:#0ea5e9;--amber:#f59e0b;--text:#e8f1ff;--muted:#9db4d6;--line:#2a4a73;--red:#ef4444;--green:#22c55e;--copper:#b87333;--cream:#fdf6d8}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--navy);color:var(--text);overflow:hidden}
+button,input,select{font:inherit}
+.topbar{position:fixed;top:0;left:0;right:0;min-height:56px;background:linear-gradient(90deg,#0d2342,#14325e);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:7px;padding:7px 10px;z-index:50;flex-wrap:wrap}
+.logo{font-weight:800;letter-spacing:.2px;white-space:nowrap;color:#fff;font-size:15px}
+.logo span{color:var(--cyan)}
+.tbtn{background:#1e3a5f;color:var(--text);border:1px solid #355a85;border-radius:10px;padding:8px 11px;cursor:pointer;white-space:nowrap;font-size:13px;min-height:38px}
+.tbtn.active{background:var(--cyan2);border-color:var(--cyan);color:#fff;font-weight:700}
+.tbtn:disabled{opacity:.45;cursor:not-allowed}
+.tbtn.warn{background:#7c2d12}
+.sep{width:1px;height:28px;background:var(--line);flex:none}
+.layout{position:fixed;inset:56px 0 0 0;display:flex}
+.palette{width:264px;flex:none;background:linear-gradient(180deg,#132a4a,#0f2240);border-right:1px solid var(--line);overflow-y:auto;padding:10px}
+.palette h3{margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cat{margin-bottom:10px;border:1px solid #24466e;border-radius:12px;overflow:hidden;background:#0f2543}
+.cathead{padding:9px 10px;font-weight:700;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:#fff}
+.catgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px}
+.pitem{background:#1b365c;border:1px solid #2e5280;border-radius:10px;padding:7px 6px;cursor:pointer;text-align:center;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.pitem:active{transform:scale(.97)}
+.pitem .dot{width:26px;height:16px;border-radius:4px;border:1px solid #0006}
+.pitem small{font-size:11px;line-height:1.15;color:#dbeafe}
+.benchWrap{flex:1;position:relative;overflow:hidden;background:
+ radial-gradient(1200px 500px at 70% -10%,#1d4e7a55,transparent 60%),
+ linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px),#0a1a33;background-size:auto,28px 28px,28px 28px}
+#world{position:absolute;left:0;top:0;width:3400px;height:2400px;transform-origin:0 0;touch-action:none}
+#wireSvg{position:absolute;left:0;top:0;width:3400px;height:2400px;overflow:visible;pointer-events:none}
+#wireSvg .hit{pointer-events:stroke;cursor:pointer}
+.breadboard{position:absolute;background:linear-gradient(180deg,#fffbe8,#f7ecc0);border-radius:14px;box-shadow:0 18px 40px #0008, inset 0 1px 0 #fff;color:#334155;border:2px solid #d6c98a}
+.bb-label{position:absolute;font-size:11px;font-weight:700;color:#64748b}
+.hole{position:absolute;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#475569,#0f172a 70%);box-shadow:inset 0 1px 2px #000;cursor:pointer;transform:translate(-50%,-50%)}
+.hole:hover{outline:2px solid var(--cyan)}
+.hole.railPlus{background:radial-gradient(circle at 35% 30%,#fca5a5,#7f1d1d 70%)}
+.hole.railMinus{background:radial-gradient(circle at 35% 30%,#93c5fd,#1e3a8a 70%)}
+.comp{position:absolute;cursor:grab;touch-action:none;user-select:none;transform-origin:center center;filter:drop-shadow(0 6px 8px #0006)}
+.comp.selected{outline:2px dashed var(--cyan);outline-offset:6px;border-radius:8px}
+.compBody{width:100%;height:100%;border-radius:8px;border:1.5px solid #0007;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;font-weight:700;line-height:1.1;padding:4px;color:#fff;text-shadow:0 1px 2px #0008;position:relative;overflow:hidden}
+.pin{position:absolute;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fde68a,#b45309 75%);border:2px solid #78350f;transform:translate(-50%,-50%);cursor:crosshair;z-index:3}
+.pin.neg{background:radial-gradient(circle at 35% 30%,#e2e8f0,#334155 75%);border-color:#0f172a}
+.pin small{position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:8px;color:#fff;background:#000a;padding:0 3px;border-radius:4px;white-space:nowrap}
+.ring{position:absolute;border:2px dotted #22d3ee88;border-radius:50%;pointer-events:none}
+.ringHandle{position:absolute;width:26px;height:26px;border-radius:50%;background:var(--cyan);border:2px solid #fff;cursor:grab;pointer-events:auto;display:flex;align-items:center;justify-content:center;font-size:14px;color:#083344;transform:translate(-50%,-50%);z-index:5}
+.ledGlow{box-shadow:0 0 26px 10px currentColor !important}
+.motorSpin{animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulseShort{0%,100%{opacity:1}50%{opacity:.35}}
+.shortWire{stroke:#f97316 !important;animation:pulseShort .5s infinite}
+.popIn{animation:pop .18s ease-out}
+@keyframes pop{from{transform:scale(.85)}to{transform:scale(1)}}
+.infoPanel{width:292px;flex:none;background:linear-gradient(180deg,#142c4f,#0f2240);border-left:1px solid var(--line);overflow-y:auto;padding:14px}
+.infoPanel h2{margin:0 0 4px;font-size:17px}
+.infoPanel h4{margin:14px 0 4px;color:var(--cyan);font-size:12px;letter-spacing:.07em;text-transform:uppercase}
+.infoPanel p{color:#dbeafe;font-size:13.5px;line-height:1.5;margin:4px 0}
+.infoPanel .fact{background:#0b2a1e;border:1px solid #166534;border-radius:10px;padding:9px;font-size:13px}
+.statusBar{position:absolute;left:10px;bottom:10px;right:10px;display:flex;gap:8px;pointer-events:none;z-index:20;flex-wrap:wrap}
+.pill{pointer-events:auto;background:#0f2543ee;border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:13px}
+.pill.bad{border-color:#ef4444;background:#450a0add;color:#fecaca}
+.pill.good{border-color:#22c55e;background:#052e16dd;color:#bbf7d0}
+input[type=range]{width:100%}
+select,.txtin{background:#0f2543;color:#fff;border:1px solid var(--line);border-radius:8px;padding:7px}
+.modal{position:fixed;inset:0;background:#020617aa;display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+.modal.open{display:flex}
+.card{background:#132a4a;border:1px solid var(--line);border-radius:16px;padding:18px;max-width:520px;width:100%;max-height:85vh;overflow:auto}
+.card h2{margin-top:0}
+.designRow{display:flex;justify-content:space-between;gap:8px;padding:9px;border:1px solid var(--line);border-radius:10px;margin:6px 0;align-items:center}
+@media(max-width:900px){.layout{flex-direction:column}.palette{width:100%;height:168px;flex:none;border-right:none;border-bottom:1px solid var(--line)}.palette .catgrid{grid-template-columns:repeat(4,1fr)}.infoPanel{width:100%;height:210px;flex:none;border-left:none;border-top:1px solid var(--line)}.benchWrap{min-height:320px}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="logo">⚡ Virtual <span>Circuit Designer</span></div>
+  <button class="tbtn active" data-tool="select">Select / Drag</button>
+  <button class="tbtn" data-tool="wire">Wire</button>
+  <button class="tbtn" data-tool="cutter">✂ Cutter / Stripper</button>
+  <button class="tbtn" data-tool="delete">Delete</button>
+  <button class="tbtn" id="soundBtn">🔊 Sound ON</button>
+  <div class="sep"></div>
+  <label style="font-size:12px;color:var(--muted)">Board <select id="boardSize"><option value="170">Mini 170</option><option value="400" selected>Standard 400</option><option value="830">Full 830</option><option value="custom">Custom rows…</option></select></label>
+  <input id="customRows" class="txtin" type="number" min="10" max="100" value="30" style="width:70px" title="Custom rows 10-100"/>
+  <button class="tbtn" id="addBoardBtn">+ Breadboard</button>
+  <button class="tbtn" id="zoomOut">−</button><button class="tbtn" id="zoomIn">+</button>
+  <div class="sep"></div>
+  <button class="tbtn" id="powerBtn" style="background:#166534;border-color:#22c55e">▶ Power Check</button>
+  <button class="tbtn" id="pdfBtn" disabled>⬇ Step-by-Step PDF</button>
+  <button class="tbtn" id="undoBtn">Undo</button>
+  <button class="tbtn" id="clearBtn">Clear</button>
+  <button class="tbtn" id="exampleBtn">Wind + Solar Example</button>
+  <button class="tbtn" id="saveBtn">Save</button>
+  <button class="tbtn" id="loadBtn">My Designs</button>
+</header>
+
+<div class="layout">
+  <aside class="palette" id="palette"><h3>Parts Shelf — tap a part, then tap the bench to place it</h3><div id="cats"></div>
+    <p style="font-size:12px;color:var(--muted);line-height:1.5">How to build: pick a tool above. <b style="color:#fff">Wire:</b> tap a pin or hole, pull, tap the target. <b style="color:#fff">Rotate:</b> select a part and drag the cyan ● around it, or two-finger twist it. <b style="color:#fff">Strip:</b> with the cutter, tap a wire end for copper, tap the middle to snip it out.</p>
+  </aside>
+
+  <main class="benchWrap" id="benchWrap">
+    <div id="world">
+      <svg id="wireSvg" viewBox="0 0 3400 2400" preserveAspectRatio="none"></svg>
+      <div id="boardLayer"></div>
+      <div id="compLayer"></div>
+    </div>
+    <div class="statusBar">
+      <div class="pill" id="hintPill">Tap a part on the shelf, then tap the bench to place it. Drag parts to move them.</div>
+      <div class="pill" id="verdictPill" style="display:none"></div>
+    </div>
+  </main>
+
+  <aside class="infoPanel" id="infoPanel">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2 id="infoTitle">Welcome to the bench</h2><button class="tbtn" id="collapseInfo">–</button></div>
+    <div id="infoBody">
+      <p>Every part here is a real, buyable component with its real pins and values. Tap any part — on the shelf or on the board — to learn what it does before you wire it.</p>
+      <h4>Try this first</h4>
+      <p>1. Place a 9V battery, a 220 Ω resistor, and a red LED.<br>2. Wire battery + → resistor → LED long leg (+), LED short leg → battery −.<br>3. Press <b>Power Check</b> — the LED lights and the PDF unlocks.</p>
+      <div class="fact">💡 LEDs only work one way round. The long leg is + (anode). Always use a resistor with an LED, or it can burn out — this bench enforces that, just like real life.</div>
+      <h4>Live controls</h4><div id="liveControls"><p style="color:var(--muted)">Select a placed part to see its switch, slider or sensor controls here.</p></div>
+      <h4>Design name</h4>
+      <input id="designName" class="txtin" value="My Circuit" style="width:100%"/>
+    </div>
+  </aside>
+</div>
+
+<div class="modal" id="designModal"><div class="card"><h2>My saved designs</h2><p style="color:var(--muted);font-size:13px">Saved in this browser on this device.</p><div id="designList"></div><button class="tbtn" onclick="document.getElementById('designModal').classList.remove('open')">Close</button></div></div>
+
+<script>
+/* ============ DEFINITIONS: all real parts ============ */
+function P(name,dx,dy,pol){return{name,dx,dy,pol:pol||''}}
+const CATS={
+"Power":{color:"#f59e0b",items:{
+ aa:{n:"Battery AA 1.5V",c:"#eab308",w:86,h:44,type:"source",volts:1.5,pins:[P("+",78,10,"+"),P("−",78,34,"-")],d:"A single AA cell supplying 1.5 volts DC. Used in remotes, toys and torches.",f:"Four AA cells in series make 6V — a common pack for school motors.",pinsTxt:"+ terminal (raised nub end) and − terminal (flat end)."},
+ b9:{n:"Battery 9V",c:"#334155",w:64,h:78,type:"source",volts:9,pins:[P("+",14,10,"+"),P("−",46,10,"-")],d:"A compact 9-volt battery with snap terminals on top. Great for breadboard projects and buzzers.",f:"A 9V battery is actually six tiny 1.5V cells stacked inside one case.",pinsTxt:"Smaller top terminal is +, larger is −."},
+ coin:{n:"Coin Cell CR2032 3V",c:"#94a3b8",w:56,h:56,type:"source",volts:3,pins:[P("+",46,14,"+"),P("−",10,42,"-")],d:"A flat 3V lithium coin cell. Powers watches, calculators and simple LED throwies.",f:"CR2032 means 20 mm wide and 3.2 mm thick.",pinsTxt:"Top face is +, bottom is −."},
+ liion:{n:"Li-ion Cell 3.7V",c:"#0ea5e9",w:86,h:40,type:"source",volts:3.7,pins:[P("+",78,8,"+"),P("−",78,32,"-")],d:"A rechargeable 18650 lithium-ion cell, nominal 3.7V. Powers torches, power banks and robots.",f:"Handle with care — a shorted Li-ion cell can get dangerously hot.",pinsTxt:"Raised end is +, flat end is −."},
+ dcjack:{n:"DC Power Jack 9V",c:"#1f2937",w:70,h:50,type:"source",volts:9,pins:[P("+",60,14,"+"),P("−",60,36,"-")],d:"Socket for a wall adapter (barrel plug). Brings external DC power onto the breadboard.",f:"The most common school adapter size is 5.5 × 2.1 mm.",pinsTxt:"Centre pin is usually +, outer sleeve is − (GND)."},
+ solar:{n:"Solar Panel 6V",c:"#1d4ed8",w:110,h:74,type:"solar",volts:6,pins:[P("+",100,14,"+"),P("−",100,60,"-")],d:"A photovoltaic panel that makes about 6V in bright light. In this bench it only produces power while its Light switch (in Live Controls) is ON.",f:"This is the panel type used to upgrade the windmill project so sun and wind can both charge the tank.",pinsTxt:"Red wire is +, black wire is −."},
+ usb5:{n:"USB 5V Supply",c:"#475569",w:76,h:46,type:"source",volts:5,pins:[P("5V",66,12,"+"),P("GND",66,34,"-")],d:"5 volts from a USB port or phone charger — the standard power for Arduino projects.",f:"USB was designed for data, but its 5V pins now power millions of maker projects.",pinsTxt:"5V pin and GND pin."}
+}},
+"Lights & Sound":{color:"#ef4444",items:{
+ ledR:{n:"LED Red 5mm",c:"#dc2626",w:44,h:62,type:"led",vf:2,pins:[P("A +",10,54,"+"),P("K −",34,54,"-")],d:"A light-emitting diode. Current flows one way only: in the long leg (+) and out the short leg (−). A red LED drops about 2V.",f:"LEDs light traffic signals, remotes and almost every gadget status light.",pinsTxt:"Long leg = anode (+). Short leg / flat side = cathode (−)."},
+ ledG:{n:"LED Green 5mm",c:"#16a34a",w:44,h:62,type:"led",vf:2.2,pins:[P("A +",10,54,"+"),P("K −",34,54,"-")],d:"A green 5mm LED, forward drop about 2.2V. One-way device — reversed, it stays dark.",f:"Green LEDs were much harder to invent than red ones — efficient green/blue LEDs won a Nobel Prize in 2014.",pinsTxt:"Long leg = +, short leg = −."},
+ ledB:{n:"LED Blue 5mm",c:"#2563eb",w:44,h:62,type:"led",vf:3.2,pins:[P("A +",10,54,"+"),P("K −",34,54,"-")],d:"A blue 5mm LED needing about 3.2V forward — so it won't light from a single 1.5V AA cell.",f:"Blue LEDs made white LED bulbs and phone screens possible.",pinsTxt:"Long leg = +, short leg = −."},
+ ledY:{n:"LED Yellow 5mm",c:"#eab308",w:44,h:62,type:"led",vf:2.1,pins:[P("A +",10,54,"+"),P("K −",34,54,"-")],d:"A yellow 5mm LED, forward drop about 2.1V.",f:"Amber/yellow LEDs are used for turn signals because they cut through fog well.",pinsTxt:"Long leg = +, short leg = −."},
+ rgb:{n:"RGB LED",c:"#7c3aed",w:48,h:62,type:"led",vf:2,pins:[P("R",6,54,"+"),P("COM −",20,54,"-"),P("G",32,54,"+"),P("B",42,54,"+")],d:"Three LEDs (red, green, blue) in one package with a common cathode. Mix colours by lighting channels together.",f:"Every pixel of an LED TV is essentially a tiny RGB set like this.",pinsTxt:"Longest leg is the common pin; here modelled as common −."},
+ bulb:{n:"Mini Bulb 6V",c:"#facc15",w:52,h:62,type:"load",pins:[P("",14,54,""),P("",38,54,"")],d:"An incandescent torch bulb. Works either way round, glows warm, and uses more current than an LED.",f:"Edison's bulb filament is tungsten — it glows at over 2,000 °C without melting.",pinsTxt:"Two unpolarised terminals."},
+ buzzer:{n:"Active Buzzer 5V",c:"#111827",w:54,h:54,type:"buzzer",pins:[P("+",12,46,"+"),P("−",42,46,"-")],d:"Makes a continuous tone when DC power is applied the right way round. Used for alarms and timers.",f:"Active buzzers have a built-in oscillator; passive buzzers need a tone signal.",pinsTxt:"+ leg is longer; − goes to GND."},
+ piezo:{n:"Piezo Speaker",c:"#a16207",w:56,h:44,type:"load",pins:[P("",14,36,""),P("",42,36,"")],d:"A thin disc that clicks/sounds when voltage changes across it. Used in greeting cards and alarms.",f:"Piezo discs also work in reverse — tap one and it generates a tiny voltage.",pinsTxt:"Unpolarised for simple click use."}
+}},
+"Motors":{color:"#06b6d4",items:{
+ motor:{n:"DC Motor 3–6V",c:"#64748b",w:78,h:58,type:"motor",pins:[P("",12,50,""),P("",66,50,"")],d:"Spins when DC flows through it. Swap the two wires and it spins the other way. In the windmill project, wind spins it backwards as a generator.",f:"The same motor design drives toy cars, fans and DVD trays.",pinsTxt:"Two terminals, unpolarised — polarity sets direction."},
+ servo:{n:"Servo Motor SG90",c:"#0284c7",w:72,h:60,type:"load",pins:[P("VCC",10,52,"+"),P("GND",34,52,"-"),P("SIG",58,52,"")],d:"A geared motor that turns to an exact angle set by a signal pulse. Used for robot arms and steering.",f:"SG90 servos are the blue micro servos in almost every school robot kit.",pinsTxt:"Brown/black = GND, red = VCC, orange = signal."},
+ fan:{n:"DC Fan 5V",c:"#334155",w:62,h:62,type:"motor",pins:[P("+",12,54,"+"),P("−",50,54,"-")],d:"A small cooling fan with a built-in brushless motor. Red is +, black is −.",f:"Brushless fans have a tiny circuit board inside that switches the coils electronically.",pinsTxt:"Red +, black −."},
+ vib:{n:"Vibration Motor",c:"#78716c",w:56,h:40,type:"motor",pins:[P("+",10,32,"+"),P("−",46,32,"-")],d:"A tiny motor with an off-centre weight — it buzzes instead of spinning usefully. Makes phones vibrate.",f:"Game controllers use bigger versions of this for rumble.",pinsTxt:"+ and − terminals."}
+}},
+"Resistors & Capacitors":{color:"#f97316",items:{
+ r100:{n:"Resistor 100 Ω",c:"#d6b98a",w:92,h:30,type:"resistor",ohms:100,bands:["#78350f","#000","#78350f","#d4af37"],pins:[P("",6,15,""),P("",86,15,"")],d:"Limits current in a circuit. 100 Ω — bands brown-black-brown-gold. Works either way round.",f:"Resistors turn extra electrical energy into a tiny amount of heat.",pinsTxt:"Unpolarised — either leg can go either side."},
+ r220:{n:"Resistor 220 Ω",c:"#d6b98a",w:92,h:30,type:"resistor",ohms:220,bands:["#dc2626","#dc2626","#78350f","#d4af37"],pins:[P("",6,15,""),P("",86,15,"")],d:"The classic LED resistor for 5–9V projects. 220 Ω — bands red-red-brown-gold.",f:"220 Ω is the most common resistor in Arduino starter kits.",pinsTxt:"Unpolarised."},
+ r1k:{n:"Resistor 1 kΩ",c:"#d6b98a",w:92,h:30,type:"resistor",ohms:1000,bands:["#78350f","#000","#dc2626","#d4af37"],pins:[P("",6,15,""),P("",86,15,"")],d:"1,000 ohms — bands brown-black-red-gold. Used for dimmer LEDs, pull-ups and transistor bases.",f:"The letter k means kilo — one thousand.",pinsTxt:"Unpolarised."},
+ r10k:{n:"Resistor 10 kΩ",c:"#d6b98a",w:92,h:30,type:"resistor",ohms:10000,bands:["#78350f","#000","#f97316","#d4af37"],pins:[P("",6,15,""),P("",86,15,"")],d:"10,000 ohms — bands brown-black-orange-gold. Common for sensors and button pull-downs.",f:"10k is the go-to value for LDR voltage dividers.",pinsTxt:"Unpolarised."},
+ cap100:{n:"Capacitor 100 µF Electrolytic",c:"#1e40af",w:48,h:66,type:"capacitor",pins:[P("+",12,58,"+"),P("−",36,58,"-")],d:"Stores charge and smooths power. Electrolytic capacitors are polarised — the stripe side is −. It charges while powered, then can keep an LED glowing briefly after power is removed.",f:"Capacitors are like tiny rechargeable buckets for electricity.",pinsTxt:"Long leg / unstriped = +, striped side = −."},
+ cap10:{n:"Capacitor 10 µF Electrolytic",c:"#2563eb",w:44,h:60,type:"capacitor",pins:[P("+",10,52,"+"),P("−",34,52,"-")],d:"A smaller electrolytic capacitor for smoothing and timing circuits. Polarised.",f:"A 10 µF cap with a 10 kΩ resistor makes a ~0.1 second timer in a 555 circuit.",pinsTxt:"+ leg longer, − leg by the stripe."},
+ supercap:{n:"Supercapacitor 5.5V 1F",c:"#0f766e",w:58,h:66,type:"capacitor",pins:[P("+",14,58,"+"),P("−",44,58,"-")],d:"A huge 1-farad capacitor — the storage tank of the windmill project. It soaks up wind/solar energy and releases it slowly to the LED.",f:"1 farad is enormous — most circuit capacitors are millionths of a farad.",pinsTxt:"+ leg marked on the body; never exceed 5.5V."},
+ pot:{n:"Potentiometer 10 kΩ",c:"#374151",w:64,h:54,type:"pot",pins:[P("1",8,46,""),P("Wiper",32,46,""),P("3",56,46,"")],d:"A variable resistor with a knob. Turning it changes resistance — perfect for dimming an LED. Use the middle wiper pin plus one outer pin.",f:"Volume knobs on old radios are potentiometers.",pinsTxt:"Outer pins are the ends of the track; middle is the wiper."},
+ ldr:{n:"LDR (Light Sensor)",c:"#b45309",w:52,h:44,type:"resistorVar",ohms:1000,pins:[P("",12,36,""),P("",40,36,"")],d:"Light-Dependent Resistor: its resistance falls as light falls on it. Use its slider in Live Controls to change the light level and watch an LED respond.",f:"Street lights use LDRs to switch on at dusk.",pinsTxt:"Unpolarised."},
+ therm:{n:"Thermistor 10K NTC",c:"#7c2d12",w:48,h:44,type:"resistorVar",ohms:10000,pins:[P("",10,36,""),P("",38,36,"")],d:"A resistor whose value changes with temperature. NTC type: warmer = lower resistance.",f:"Thermistors are the temperature sensors inside 3D printers and kettles.",pinsTxt:"Unpolarised."},
+ inductor:{n:"Inductor 10 mH",c:"#92400e",w:70,h:36,type:"load",pins:[P("",6,18,""),P("",64,18,"")],d:"A coil of wire that resists changes in current and stores energy in a magnetic field.",f:"Inductors are the heart of phone chargers' voltage converters.",pinsTxt:"Unpolarised."},
+ fuse:{n:"Fuse 1A",c:"#e0f2fe",w:76,h:28,type:"fuse",pins:[P("",6,14,""),P("",70,14,"")],d:"A safety link with a thin wire inside that melts if current gets too high, breaking the circuit to protect it.",f:"Your home's breaker panel is the resettable cousin of the fuse.",pinsTxt:"Unpolarised; goes in series with the + supply."}
+}},
+"Switches":{color:"#22c55e",items:{
+ toggle:{n:"Toggle Switch",c:"#475569",w:56,h:60,type:"switch",pins:[P("COM",10,52,""),P("ON",46,52,"")],d:"Stays ON or OFF when flipped. Use its Live Controls switch after placing it — open means no current can pass.",f:"Cockpit switches are toggles because pilots can feel their state without looking.",pinsTxt:"Common pin and switched pin (SPST modelled)."},
+ slide:{n:"Slide Switch",c:"#334155",w:62,h:38,type:"switch",pins:[P("",10,30,""),P("",52,30,"")],d:"A small sliding ON/OFF switch found on toys and torches.",f:"Slide switches are cheap and stay put — ideal for battery toys.",pinsTxt:"Two pins connected when ON."},
+ button:{n:"Push Button",c:"#dc2626",w:52,h:52,type:"button",pins:[P("",10,44,""),P("",42,44,"")],d:"Conducts only while pressed. In Live Controls, hold its button to close it, release to open.",f:"Keyboard keys and doorbells are push buttons.",pinsTxt:"Two pins (one leg pair modelled)."},
+ reed:{n:"Reed Switch",c:"#a8a29e",w:70,h:30,type:"switch",pins:[P("",6,15,""),P("",64,15,"")],d:"A switch inside a glass tube that closes when a magnet comes near. Used in door alarms.",f:"Bike speedometers count wheel turns with a reed switch and a spoke magnet.",pinsTxt:"Unpolarised."}
+}},
+"Boards":{color:"#0ea5e9",items:{
+ uno:{n:"Arduino Uno R3",c:"#0e7490",w:150,h:110,type:"board",volts:5,pins:[P("5V",18,96,"+"),P("3.3V",44,96,"+"),P("GND",70,96,"-"),P("D7",120,14,""),P("D8",96,14,""),P("A0",132,96,"")],d:"The classic microcontroller board. Its 5V/3.3V and GND pins act as real power sources here. This bench does not run uploaded code — pins and power behave, code simulation is a Wokwi job.",f:"Uno means 'one' in Italian — it was Arduino's reference board.",pinsTxt:"Power header: 5V, 3.3V, GND. Digital D2–D13, analogue A0–A5 (key pins modelled)."},
+ nano:{n:"Arduino Nano",c:"#0369a1",w:110,h:56,type:"board",volts:5,pins:[P("5V",14,44,"+"),P("GND",40,44,"-"),P("D7",84,12,""),P("A0",98,44,"")],d:"A tiny breadboard-friendly Arduino. Plugs straight into a breadboard; 5V and GND pins power your rails.",f:"The Nano is small enough to leave permanently inside a project.",pinsTxt:"5V, GND, D-pins and A-pins along both edges (key pins modelled)."},
+ esp32:{n:"ESP32 Dev Board",c:"#1e293b",w:120,h:84,type:"board",volts:3.3,pins:[P("3.3V",14,70,"+"),P("GND",42,70,"-"),P("GPIO2",96,14,""),P("GPIO4",70,14,"")],d:"A powerful Wi-Fi + Bluetooth microcontroller board running at 3.3V logic. Its 3.3V/GND pins power circuits here.",f:"ESP32s run everything from smart plugs to DIY weather stations.",pinsTxt:"3V3, GND and GPIO pins (key pins modelled). Never feed 5V into a GPIO."},
+ pico:{n:"Raspberry Pi Pico",c:"#15803d",w:116,h:60,type:"board",volts:3.3,pins:[P("3.3V",14,48,"+"),P("GND",42,48,"-"),P("GP0",88,12,""),P("GP1",102,48,"")],d:"Raspberry Pi's microcontroller board (RP2040 chip), 3.3V logic, breadboard-friendly.",f:"The Pico's chip was designed in Cambridge, UK by Raspberry Pi themselves.",pinsTxt:"3V3, GND, GP pins (key pins modelled)."},
+ microbit:{n:"BBC micro:bit",c:"#111827",w:96,h:76,type:"board",volts:3,pins:[P("3V",14,64,"+"),P("GND",44,64,"-"),P("P0",74,64,"")],d:"A pocket computer for schools with LEDs, buttons and sensors on board. Its edge connector gives 3V and GND.",f:"Millions of micro:bits were given free to UK school children.",pinsTxt:"Edge pins: 3V, GND, P0/P1/P2."}
+}},
+"Sensors":{color:"#a855f7",items:{
+ hcsr04:{n:"Ultrasonic HC-SR04",c:"#2563eb",w:104,h:56,type:"sensor",pins:[P("VCC",14,48,"+"),P("TRIG",40,48,""),P("ECHO",66,48,""),P("GND",92,48,"-")],d:"Measures distance with sound pulses — send a pulse on TRIG, time the ECHO. Range about 2 cm to 4 m. Set the distance with its slider.",f:"Bats navigate exactly like this — echolocation.",pinsTxt:"VCC (5V), TRIG (in), ECHO (out), GND."},
+ pir:{n:"PIR Motion HC-SR501",c:"#f5f5f4",w:66,h:66,type:"sensor",pins:[P("VCC",10,58,"+"),P("OUT",33,58,""),P("GND",56,58,"-")],d:"Detects moving warm bodies (people, pets) by infrared. OUT goes HIGH when motion is seen — toggle motion in Live Controls.",f:"Garden security lights use PIR sensors.",pinsTxt:"VCC, OUT, GND under the white dome."},
+ dht11:{n:"DHT11 Temp/Humidity",c:"#38bdf8",w:56,h:66,type:"sensor",pins:[P("VCC",10,58,"+"),P("DATA",28,58,""),P("GND",46,58,"-")],d:"Measures temperature and humidity and sends them as digital data. Set both values with its sliders.",f:"DHT11s are the blue sensors inside most DIY weather stations.",pinsTxt:"VCC (3.5–5V), DATA, GND."},
+ soil:{n:"Soil Moisture Sensor",c:"#854d0e",w:60,h:66,type:"sensor",pins:[P("VCC",10,58,"+"),P("GND",30,58,"-"),P("AOUT",50,58,"")],d:"Two probes measure how wet soil is — for automatic plant watering. Set moisture with its slider.",f:"Capacitive versions last longer because their probes don't rust.",pinsTxt:"VCC, GND, analogue out."},
+ mq2:{n:"Gas Sensor MQ-2",c:"#78716c",w:58,h:62,type:"sensor",pins:[P("VCC",10,54,"+"),P("GND",29,54,"-"),P("AOUT",48,54,"")],d:"Detects smoke and gases like LPG and methane. Used in gas-leak alarms.",f:"MQ sensors contain a tiny heater — they work best after warming up.",pinsTxt:"VCC (5V), GND, analogue/digital out."},
+ water:{n:"Water Level Sensor",c:"#0369a1",w:52,h:66,type:"sensor",pins:[P("+",10,58,"+"),P("S",26,58,""),P("−",42,58,"-")],d:"Exposed traces measure how deep the board sits in water — for tank-level projects.",f:"Rain sensors on weather stations work the same way.",pinsTxt:"+ (VCC), S (signal), − (GND)."},
+ ir:{n:"IR Receiver VS1838B",c:"#111827",w:48,h:56,type:"sensor",pins:[P("OUT",8,48,""),P("GND",24,48,"-"),P("VCC",40,48,"+")],d:"Receives the infrared code from a TV remote so your project can obey it.",f:"Remotes blink their IR LED about 38,000 times a second so sunlight doesn't confuse the receiver.",pinsTxt:"OUT, GND, VCC (left to right facing the dome)."},
+ rfid:{n:"RFID Reader RC522",c:"#1d4ed8",w:86,h:62,type:"sensor",pins:[P("3.3V",12,54,"+"),P("GND",38,54,"-"),P("SDA",64,54,"")],d:"Reads contactless cards and key fobs at 13.56 MHz — for door locks and attendance projects. Runs on 3.3V only.",f:"Hotel key cards and travel passes use this same technology.",pinsTxt:"3.3V, GND, plus SPI pins (SDA shown)."},
+ joystick:{n:"Joystick Module",c:"#1f2937",w:66,h:66,type:"sensor",pins:[P("GND",10,58,"-"),P("5V",26,58,"+"),P("VRx",42,58,""),P("VRy",56,58,"")],d:"A thumb stick giving two analogue values (X and Y) plus a press switch — for games and robots.",f:"It's two potentiometers at right angles with a stick on top.",pinsTxt:"GND, 5V, VRx, VRy, SW."},
+ encoder:{n:"Rotary Encoder",c:"#374151",w:56,h:56,type:"sensor",pins:[P("GND",8,48,"-"),P("+",22,48,"+"),P("SW",36,48,""),P("DT",48,48,"")],d:"A knob that clicks as it turns and reports direction — for menus and volume controls.",f:"Unlike a potentiometer, an encoder can spin forever.",pinsTxt:"+ , GND, SW, DT, CLK."},
+ keypad:{n:"Keypad 4×4",c:"#1e293b",w:76,h:84,type:"sensor",pins:[P("R1",10,76,""),P("C1",30,76,""),P("R2",50,76,""),P("C2",66,76,"")],d:"A 16-key matrix keypad for PIN codes and menus. Rows and columns are scanned to find the pressed key.",f:"ATMs and door locks use matrix keypads to save pins.",pinsTxt:"8 pins: rows R1–R4 and columns C1–C4 (key pins modelled)."}
+}},
+"Displays & Modules":{color:"#ec4899",items:{
+ lcd:{n:"LCD Display 16×2",c:"#15803d",w:150,h:62,type:"display",pins:[P("VSS",12,54,"-"),P("VDD",30,54,"+"),P("RS",54,54,""),P("E",78,54,""),P("D4",102,54,""),P("D7",132,54,"")],d:"Shows 2 lines of 16 characters — the classic Arduino display for sensor readings.",f:"Its controller chip (HD44780) has been in production since the 1980s.",pinsTxt:"VSS=GND, VDD=5V, plus control/data pins (key pins modelled)."},
+ oled:{n:"OLED Display 0.96\"",c:"#0f172a",w:96,h:62,type:"display",pins:[P("GND",12,54,"-"),P("VCC",36,54,"+"),P("SCL",60,54,""),P("SDA",84,54,"")],d:"A crisp little graphical screen (128×64 pixels) using I2C — only 4 wires.",f:"Each pixel is its own tiny LED, so black pixels use almost no power.",pinsTxt:"GND, VCC, SCL, SDA."},
+ seg7:{n:"7-Segment Display",c:"#7f1d1d",w:62,h:76,type:"display",pins:[P("COM −",12,68,"-"),P("A",26,68,""),P("B",40,68,""),P("DP",54,68,"")],d:"Seven LED bars arranged to show digits 0–9, like a clock radio.",f:"The digit shapes haven't changed since the 1970s — they're readable at a glance.",pinsTxt:"Common cathode plus segment pins (key pins modelled)."},
+ relay:{n:"Relay Module 5V",c:"#1e40af",w:84,h:60,type:"relay",pins:[P("VCC",12,52,"+"),P("GND",34,52,"-"),P("IN",56,52,""),P("COM",74,20,""),P("NO",74,40,"")],d:"An electrically operated switch: a small signal clicks it over to switch a much bigger load safely.",f:"Relays let a tiny Arduino control mains lamps and pumps without touching the power itself.",pinsTxt:"VCC, GND, IN on the control side; COM/NO/NC screw terminals on the load side."},
+ hc05:{n:"Bluetooth HC-05",c:"#1d4ed8",w:80,h:52,type:"sensor",pins:[P("VCC",12,44,"+"),P("GND",32,44,"-"),P("TXD",52,44,""),P("RXD",70,44,"")],d:"Adds Bluetooth serial to a project so a phone can control it wirelessly.",f:"HC-05s are how many school robots get their phone remote control.",pinsTxt:"VCC, GND, TXD, RXD."},
+ rtc:{n:"RTC Clock DS3231",c:"#334155",w:78,h:54,type:"sensor",pins:[P("GND",12,46,"-"),P("VCC",32,46,"+"),P("SDA",52,46,""),P("SCL",70,46,"")],d:"A very accurate real-time clock with battery backup — keeps time when power is off.",f:"The DS3231 adjusts itself for temperature, drifting only about a minute a year.",pinsTxt:"GND, VCC, SDA, SCL (I2C)."}
+}},
+"Chips & Others":{color:"#64748b",items:{
+ ne555:{n:"NE555 Timer IC",c:"#111827",w:76,h:56,type:"chip",pins:[P("GND",10,48,"-"),P("TRIG",28,48,""),P("OUT",46,48,""),P("VCC",64,8,"+")],d:"The most famous timer chip ever: makes pulses, blinks LEDs and generates tones. OUT pin can drive a small load.",f:"Over a billion 555s have been made since 1972.",pinsTxt:"Pin 1 GND, 2 TRIG, 3 OUT, 8 VCC (key pins modelled; DIP-8)."},
+ t2222:{n:"Transistor 2N2222",c:"#1f2937",w:46,h:56,type:"transistor",pins:[P("E",8,48,""),P("B",23,48,""),P("C",38,48,"")],d:"An NPN transistor — a tiny electronic switch/amplifier. A small base current controls a bigger collector current, letting a board pin drive a motor.",f:"Transistors are the switches inside every computer chip — billions per chip.",pinsTxt:"Facing the flat side: E, B, C (TO-92)."},
+ bc547:{n:"Transistor BC547",c:"#1f2937",w:46,h:56,type:"transistor",pins:[P("C",8,48,""),P("B",23,48,""),P("E",38,48,"")],d:"A common small-signal NPN transistor for switching LEDs and buzzers.",f:"Note: BC547 pin order (C-B-E) is the reverse of the 2N2222 — a classic trap.",pinsTxt:"Facing the flat side: C, B, E (TO-92)."},
+ d5817:{n:"Diode 1N5817 Schottky",c:"#9a3412",w:84,h:28,type:"diode",pins:[P("A",6,14,"+"),P("K",78,14,"-")],d:"A one-way gate for current with a low 0.3V drop — the gate diodes of the windmill project. Silver band marks the cathode (−). Current flows anode → cathode only.",f:"Schottky diodes are named after physicist Walter Schottky.",pinsTxt:"Anode (no band) → Cathode (silver band)."},
+ d4007:{n:"Diode 1N4007",c:"#374151",w:84,h:28,type:"diode",pins:[P("A",6,14,"+"),P("K",78,14,"-")],d:"A sturdy general-purpose rectifier diode, 1000V rated. Often placed across motors to catch voltage spikes.",f:"The 1N4007 is probably the most common diode on Earth.",pinsTxt:"Anode → Cathode (band)."},
+ terminal:{n:"Terminal Block 2-pin",c:"#15803d",w:64,h:40,type:"load",pins:[P("",12,32,""),P("",52,32,"")],d:"Screw terminals for joining thicker wires (like battery leads) to a project neatly.",f:"Terminal blocks are how solar panels and battery packs connect in real installs.",pinsTxt:"Two screw positions."},
+ clipR:{n:"Alligator Clip Lead Red",c:"#dc2626",w:84,h:30,type:"fuse",pins:[P("",6,15,"+"),P("",78,15,"")],d:"A red crocodile-clip lead for temporary connections — clipping onto battery terminals and motor tabs.",f:"Named for the clip's resemblance to an alligator's jaws.",pinsTxt:"Red = positive lead."},
+ clipB:{n:"Alligator Clip Lead Black",c:"#111827",w:84,h:30,type:"fuse",pins:[P("",6,15,"-"),P("",78,15,"")],d:"A black crocodile-clip lead, the negative/ground partner to the red one.",f:"Colour coding (red +, black −) is a worldwide wiring convention.",pinsTxt:"Black = negative / GND lead."},
+ ammeter:{n:"Ammeter",c:"#fef3c7",w:60,h:60,type:"load",pins:[P("",10,52,""),P("",50,52,"")],d:"Measures current flowing through it — it must go in series, as part of the path.",f:"An ideal ammeter has zero resistance, so it doesn't disturb the circuit.",pinsTxt:"In series with the load."},
+ voltmeter:{n:"Voltmeter",c:"#fef3c7",w:60,h:60,type:"load",pins:[P("+",10,52,"+"),P("−",50,52,"-")],d:"Measures voltage between two points — it connects across (in parallel with) a part.",f:"Voltmeters have very high resistance so they sip almost no current.",pinsTxt:"+ probe and − probe, across a component."},
+ gnd:{n:"Ground (GND) Symbol",c:"#334155",w:52,h:52,type:"ground",pins:[P("GND",26,8,"-")],d:"The reference 0V point of a circuit. Tying a pin to ground completes most board circuits.",f:"In cars, the whole metal body is the ground return path.",pinsTxt:"Single GND connection point."}
+}}
+};
+/* ============ STATE ============ */
+let state={components:[],wires:[],boards:[],tool:"select",placing:null,selectedId:null,selectedPalette:null,sound:true,success:false,zoom:1,panX:0,panY:0,history:[]};
+let idc=1; const $=s=>document.querySelector(s);
+const world=$("#world"), compLayer=$("#compLayer"), boardLayer=$("#boardLayer"), svg=$("#wireSvg");
+/* ============ AUDIO (synthesised ASMR) ============ */
+let AC=null; function ac(){if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==="suspended")AC.resume(); return AC;}
+function noiseBurst(dur,freq,vol,type){ if(!state.sound)return; try{const a=ac(),t=a.currentTime; const buf=a.createBuffer(1,a.sampleRate*dur,a.sampleRate),d=buf.getChannelData(0); for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length); const src=a.createBufferSource();src.buffer=buf; const f=a.createBiquadFilter();f.type=type||"bandpass";f.frequency.value=freq; const g=a.createGain();g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur); src.connect(f);f.connect(g);g.connect(a.destination);src.start();}catch(e){} }
+function blip(freq,dur,vol){ if(!state.sound)return; try{const a=ac(),o=a.createOscillator(),g=a.createGain();o.frequency.value=freq;o.type="sine";g.gain.setValueAtTime(vol||.08,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+dur);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+dur);}catch(e){} }
+const sfx={ snap:()=>{noiseBurst(.07,2200,.20);setTimeout(()=>noiseBurst(.05,1400,.12),25);}, wire:()=>noiseBurst(.05,1600,.10), snip:()=>{noiseBurst(.04,3200,.22,"highpass");}, scrape:()=>noiseBurst(.16,900,.10,"bandpass"), pop:()=>blip(220,.09,.08), good:()=>{blip(660,.12,.08);setTimeout(()=>blip(990,.16,.08),110);} };
+/* ============ PALETTE ============ */
+function buildPalette(){ const cats=$("#cats"); cats.innerHTML=""; Object.entries(CATS).forEach(([cat,def])=>{ const div=document.createElement("div");div.className="cat"; div.innerHTML=`<div class="cathead" style="background:${def.color}33;border-left:5px solid ${def.color}">${cat}<span>▾</span></div><div class="catgrid"></div>`; const grid=div.querySelector(".catgrid"); div.querySelector(".cathead").onclick=()=>{grid.style.display=grid.style.display==="none"?"grid":"none";};
+ Object.entries(def.items).forEach(([key,it])=>{ const el=document.createElement("div");el.className="pitem"; el.innerHTML=`<div class="dot" style="background:${it.c}"></div><small>${it.n}</small>`; el.onclick=()=>{ state.placing=key; state.selectedPalette=key; showInfo(key,null); hint(`Placing: ${it.n} — tap the bench or breadboard to drop it. Tap again on the shelf to cancel.`); document.querySelectorAll(".pitem").forEach(p=>p.style.outline=""); el.style.outline="2px solid var(--cyan)"; }; grid.appendChild(el); }); cats.appendChild(div); }); }
+function findDef(key){ for(const c of Object.values(CATS)) if(c.items[key]) return c.items[key]; return null; }
+function catOf(key){ for(const [cn,c] of Object.entries(CATS)) if(c.items[key]) return cn; return ""; }
+/* ============ BREADBOARD ============ */
+const HOLE=22;
+function rowsForSize(v){ return v==="170"?10:v==="830"?63:30; }
+function addBoard(rows,x,y){ const b={id:idc++,rows,x:x??90,y:y??90}; state.boards.push(b); renderBoard(b); return b; }
+function boardGeom(b){ return {w:430,h:96+b.rows*HOLE}; }
+function holePos(b,kind,a,bIdx){ // kind: railP,railM,cell
+ if(kind==="railPL")return{x:b.x+28,y:b.y+62+a*HOLE}; if(kind==="railML")return{x:b.x+54,y:b.y+62+a*HOLE};
+ if(kind==="railPR")return{x:b.x+376,y:b.y+62+a*HOLE}; if(kind==="railMR")return{x:b.x+402,y:b.y+62+a*HOLE};
+ const colX=[92,114,136,158,180,224,246,268,290,312]; return {x:b.x+colX[bIdx], y:b.y+62+a*HOLE}; }
+function holeId(b,kind,a,c){ return `bb${b.id}:${kind}:${a}:${c??""}`; }
+function holeAddr(b,kind,a,c){ const L="ABCDEFGHIJ"; if(kind==="cell")return `${L[c]}${a+1}`; return `${kind.includes("P")?"+ rail":"− rail"} row ${a+1} (board ${b.id})`; }
+function renderBoard(b){ const old=document.querySelector(`[data-board="${b.id}"]`); if(old)old.remove(); const g=boardGeom(b); const el=document.createElement("div"); el.className="breadboard"; el.dataset.board=b.id; el.style.left=b.x+"px";el.style.top=b.y+"px";el.style.width=g.w+"px";el.style.height=g.h+"px";
+ el.innerHTML=`<div class="bb-label" style="left:14px;top:8px">+ &nbsp; − &nbsp;&nbsp; BREADBOARD ${b.rows===10?170:b.rows===30?400:b.rows===63?830:b.rows*10+100} tie-points · ${b.rows} rows</div><div class="bb-label" style="left:110px;top:30px">A B C D E &nbsp;&nbsp;&nbsp; F G H I J</div><div class="bb-label" style="right:12px;top:8px">+ −</div>`;
+ const frag=document.createDocumentFragment();
+ for(let r=0;r<b.rows;r++){ [["railPL","railPlus"],["railML","railMinus"],["railPR","railPlus"],["railMR","railMinus"]].forEach(([k,cls])=>{ const p=holePos(b,k,r); const h=document.createElement("div");h.className="hole "+cls;h.style.left=p.x-b.x+"px";h.style.top=p.y-b.y+"px";h.dataset.node=holeId(b,k,r);h.dataset.label=holeAddr(b,k,r);h.title=h.dataset.label; frag.appendChild(h); });
+ for(let c=0;c<10;c++){ const p=holePos(b,"cell",r,c); const h=document.createElement("div");h.className="hole";h.style.left=p.x-b.x+"px";h.style.top=p.y-b.y+"px";h.dataset.node=holeId(b,"cell",r,c);h.dataset.label=holeAddr(b,"cell",r,c);h.title=h.dataset.label; frag.appendChild(h);} 
+ const num=document.createElement("div");num.className="bb-label";num.textContent=r+1;num.style.left="196px";num.style.top=(62+r*HOLE-7)+"px";num.style.fontSize="9px";frag.appendChild(num); }
+ el.appendChild(frag); boardLayer.appendChild(el); }
+/* ============ COMPONENTS ============ */
+function pinWorld(comp,pin){ const def=findDef(comp.key); const cx=comp.x+def.w/2, cy=comp.y+def.h/2; const dx=pin.dx-def.w/2, dy=pin.dy-def.h/2; const r=comp.rot*Math.PI/180; return {x:cx+dx*Math.cos(r)-dy*Math.sin(r), y:cy+dx*Math.sin(r)+dy*Math.cos(r)}; }
+function compState(key){ const d=findDef(key); const s={}; if(d.type==="switch"||d.type==="solar")s.on=true; if(d.type==="button")s.on=false; if(d.type==="pot")s.val=50; if(d.type==="resistorVar")s.val=50; if(d.type==="capacitor")s.charged=false; if(key==="hcsr04")s.val=60; if(key==="dht11"){s.val=24;s.val2=55;} if(["soil","mq2","water"].includes(key))s.val=50; if(key==="pir")s.on=false; return s; }
+function placeComponent(key,x,y,rot){ const def=findDef(key); const comp={id:idc++,key,x:Math.round(x-def.w/2),y:Math.round(y-def.h/2),rot:rot||0,st:compState(key),burnt:false}; state.components.push(comp); renderComp(comp); sfx.snap(); return comp; }
+function resistorBg(def){ if(def.bands){ const seg=def.bands.map((b,i)=>`${b} ${18+i*16}% ${34+i*16}%`).join(","); return `linear-gradient(90deg,#d6b98a 0 14%,${seg},#d6b98a 88% 100%)`;} return def.c; }
+function renderComp(comp){ const def=findDef(comp.key); let el=document.querySelector(`[data-comp="${comp.id}"]`); if(!el){ el=document.createElement("div"); el.className="comp popIn"; el.dataset.comp=comp.id; compLayer.appendChild(el); }
+ el.style.left=comp.x+"px"; el.style.top=comp.y+"px"; el.style.width=def.w+"px"; el.style.height=def.h+"px"; el.style.transform=`rotate(${comp.rot}deg)`; el.classList.toggle("selected",state.selectedId===comp.id);
+ const icon = comp.key==="motor"||comp.key==="fan" ? `<span class="${comp.spinning?"motorSpin":""}" style="display:inline-block">✦</span> `:"";
+ el.innerHTML=`<div class="compBody" style="background:${resistorBg(def)};${comp.lit?`color:${def.c};background:#fef9c3;box-shadow:0 0 26px 8px ${def.c}`:""};${comp.burnt?"background:#111827;color:#ef4444":""}">${icon}${comp.burnt?"✕ BURNT — ": ""}${def.n}</div>`+def.pins.map((p,i)=>`<div class="pin ${p.pol==="-"?"neg":""}" data-pin="${i}" style="left:${p.dx}px;top:${p.dy}px"><small>${p.name}</small></div>`).join("");
+ if(state.selectedId===comp.id){ const ring=document.createElement("div"); const R=Math.max(def.w,def.h)/2+20; ring.className="ring"; ring.style.cssText=`left:${def.w/2-R}px;top:${def.h/2-R}px;width:${R*2}px;height:${R*2}px`; const h=document.createElement("div");h.className="ringHandle";h.textContent="⟳";h.style.left=R*2-4+"px";h.style.top=R+"px";h.dataset.ring="1"; ring.appendChild(h); el.appendChild(ring); }
+ attachCompEvents(el,comp); }
+function renderAllComps(){ compLayer.innerHTML=""; state.components.forEach(renderComp); drawWires(); }
+/* ============ WIRES ============ */
+function nodePos(nodeId){ if(nodeId.startsWith("bb")){ const [bid,kind,a,c]=nodeId.split(":"); const b=state.boards.find(x=>x.id==bid.slice(2)); if(!b)return{x:0,y:0}; return holePos(b,kind,parseInt(a),c===""?0:parseInt(c)); } const [cid,pi]=nodeId.split(":"); const comp=state.components.find(x=>x.id==cid.slice(1)); if(!comp)return{x:0,y:0}; const def=findDef(comp.key); return pinWorld(comp,def.pins[parseInt(pi)]); }
+function nodeLabel(nodeId){ if(nodeId.startsWith("bb")){ const el=document.querySelector(`[data-node="${CSS.escape(nodeId)}"]`); return el?el.dataset.label:nodeId; } const [cid,pi]=nodeId.split(":"); const comp=state.components.find(x=>x.id==cid.slice(1)); if(!comp)return nodeId; const def=findDef(comp.key); return `${def.n} pin ${def.pins[parseInt(pi)].name||""}`.trim(); }
+let wireDraft=null, previewLine=null, flowDots=[];
+function drawWires(){ const NS="http://www.w3.org/2000/svg"; svg.innerHTML=""; flowDots=[];
+ state.wires.forEach(w=>{ const a=nodePos(w.a), b=nodePos(w.b); const mx=(a.x+b.x)/2, my=Math.max(a.y,b.y)+Math.min(90,Math.abs(b.x-a.x)*.25+24); const path=document.createElementNS(NS,"path"); const d=`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`; path.setAttribute("d",d); path.setAttribute("fill","none"); path.setAttribute("stroke",w.color); path.setAttribute("stroke-width","5"); path.setAttribute("stroke-linecap","round"); if(w.short)path.setAttribute("class","shortWire"); svg.appendChild(path);
+ const hit=document.createElementNS(NS,"path"); hit.setAttribute("d",d); hit.setAttribute("fill","none"); hit.setAttribute("stroke","transparent"); hit.setAttribute("stroke-width","18"); hit.setAttribute("class","hit"); hit.dataset.wire=w.id; svg.appendChild(hit);
+ [[a,b,w.stripA],[b,a,w.stripB]].forEach(([p1,p2,strip])=>{ if(strip){ const dx=p2.x-p1.x, dy=p2.y-p1.y, L=Math.hypot(dx,dy)||1, ex=p1.x+dx/L*16, ey=p1.y+dy/L*16; const cu=document.createElementNS(NS,"line"); cu.setAttribute("x1",p1.x);cu.setAttribute("y1",p1.y);cu.setAttribute("x2",ex);cu.setAttribute("y2",ey);cu.setAttribute("stroke","#e8a56b");cu.setAttribute("stroke-width","6.5");cu.setAttribute("stroke-linecap","round"); svg.appendChild(cu);} });
+ [a,b].forEach((p,idx)=>{ const c=document.createElementNS(NS,"circle"); c.setAttribute("cx",p.x);c.setAttribute("cy",p.y);c.setAttribute("r","8");c.setAttribute("fill", idx===0&&w.stripA||idx===1&&w.stripB ? "#e8a56b" : w.color);c.setAttribute("stroke","#fff");c.setAttribute("stroke-width","2");c.setAttribute("class","hit");c.dataset.wireEnd=w.id+":"+(idx===0?"a":"b"); svg.appendChild(c); });
+ w._path=path; if(w.powered){ for(let i=0;i<3;i++){ const dot=document.createElementNS(NS,"circle"); dot.setAttribute("r","4"); dot.setAttribute("fill","#fde047"); dot.setAttribute("stroke","#fff"); dot.setAttribute("stroke-width","1"); svg.appendChild(dot); flowDots.push({el:dot,path,t:(i/3)}); } }
+ });
+ if(previewLine)svg.appendChild(previewLine);
+ if(wireDraft){ const sp=nodePos(wireDraft.from); const c=document.createElementNS(NS,"circle");c.setAttribute("cx",sp.x);c.setAttribute("cy",sp.y);c.setAttribute("r","10");c.setAttribute("fill","none");c.setAttribute("stroke","#22d3ee");c.setAttribute("stroke-width","3");svg.appendChild(c);} }
+/* current flow animation */
+let lastT=0; function animate(t){ requestAnimationFrame(animate); if(t-lastT<33)return; lastT=t; const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches; flowDots.forEach(fd=>{ fd.t=(fd.t+(reduced?0.0015:0.004))%1; const L=fd.path.getTotalLength(), pt=fd.path.getPointAtLength(fd.t*L); fd.el.setAttribute("cx",pt.x); fd.el.setAttribute("cy",pt.y); }); }
+requestAnimationFrame(animate);
+/* ============ INTERACTION ============ */
+function worldPoint(e){ const r=world.getBoundingClientRect(); return {x:(e.clientX-r.left)/state.zoom, y:(e.clientY-r.top)/state.zoom}; }
+function setZoom(z){ state.zoom=Math.min(2,Math.max(.4,z)); applyTransform(); }
+function applyTransform(){ world.style.transform=`translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`; }
+$("#zoomIn").onclick=()=>setZoom(state.zoom+.15); $("#zoomOut").onclick=()=>setZoom(state.zoom-.15);
+function hint(t){ $("#hintPill").textContent=t; }
+function verdict(msg,bad,good){ const v=$("#verdictPill"); v.style.display="block"; v.textContent=msg; v.className="pill "+(bad?"bad":good?"good":""); }
+function pushHistory(){ state.history.push(JSON.stringify({c:state.components,w:state.wires,b:state.boards})); if(state.history.length>40)state.history.shift(); }
+$("#undoBtn").onclick=()=>{ const h=state.history.pop(); if(!h)return; const s=JSON.parse(h); state.components=s.c;state.wires=s.w;state.boards=s.b; boardLayer.innerHTML=""; state.boards.forEach(renderBoard); renderAllComps(); reSimulate(false); sfx.pop(); };
+document.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{ state.tool=b.dataset.tool; wireDraft=null; drawWires(); document.querySelectorAll("[data-tool]").forEach(x=>x.classList.toggle("active",x===b)); hint({select:"Drag parts to move. Drag the cyan handle to rotate — or two-finger twist.",wire:"Tap a pin or breadboard hole, then tap another to connect. Drag a placed wire's end to move it.",cutter:"Tap a wire END to strip it back to copper (tap again to re-cover). Tap the MIDDLE of a wire to snip it out.",delete:"Tap a part or wire to remove it."}[state.tool]); });
+/* bench: placing, panning, pinch, wire preview */
+const pointers=new Map(); let panStart=null;
+$("#benchWrap").addEventListener("pointerdown",e=>{ ac(); pointers.set(e.pointerId,{x:e.clientX,y:e.clientY}); });
+$("#benchWrap").addEventListener("pointermove",e=>{ if(wireDraft&&previewLine){ const p=worldPoint(e); previewLine.setAttribute("x2",p.x);previewLine.setAttribute("y2",p.y);} if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pointers.size===2){ const [p1,p2]=[...pointers.values()]; if(panStart&&panStart.dist){ const d=Math.hypot(p1.x-p2.x,p1.y-p2.y); setZoom(state.zoom*(d/panStart.dist)); panStart.dist=d; } }
+ else if(panStart&&panStart.moved!==undefined&&e.buttons){ const dx=e.clientX-panStart.x, dy=e.clientY-panStart.y; if(Math.hypot(dx,dy)>6)panStart.moved=true; if(panStart.moved&&panStart.targetIsBench){ state.panX=panStart.px+dx; state.panY=panStart.py+dy; applyTransform(); } } });
+$("#benchWrap").addEventListener("pointerup",e=>{ pointers.delete(e.pointerId); });
+world.addEventListener("pointerdown",e=>{ const onComp=e.target.closest(".comp"), onHole=e.target.closest(".hole"); panStart={x:e.clientX,y:e.clientY,px:state.panX,py:state.panY,moved:false,targetIsBench:!onComp,dist:0}; if(pointers.size===2){ const [p1,p2]=[...pointers.values()]; panStart.dist=Math.hypot(p1.x-p2.x,p1.y-p2.y); }
+ if(state.placing&&!onComp){ const p=worldPoint(e); pushHistory(); placeComponent(state.placing,p.x,p.y); state.placing=null; document.querySelectorAll(".pitem").forEach(x=>x.style.outline=""); hint("Placed! Drag it to move, use the Wire tool to connect its pins, or tap another part to place next."); e.stopPropagation(); } });
+/* holes + pins clicks for wiring */
+document.addEventListener("click",e=>{ const hole=e.target.closest(".hole"); const pinEl=e.target.closest(".pin");
+ let node=null; if(hole)node=hole.dataset.node; if(pinEl){ const compEl=pinEl.closest(".comp"); node=`c${compEl.dataset.comp}:${pinEl.dataset.pin}`; }
+ if(node&&state.tool==="wire"){ handleWireTap(node); e.stopPropagation(); return; }
+ if(node&&state.tool==="select"&&pinEl){ const compEl=pinEl.closest(".comp"); selectComp(parseInt(compEl.dataset.comp)); }
+});
+function handleWireTap(node){ if(!wireDraft){ wireDraft={from:node}; const p=nodePos(node); const NS="http://www.w3.org/2000/svg"; previewLine=document.createElementNS(NS,"line"); previewLine.setAttribute("x1",p.x);previewLine.setAttribute("y1",p.y);previewLine.setAttribute("x2",p.x);previewLine.setAttribute("y2",p.y);previewLine.setAttribute("stroke","#f87171");previewLine.setAttribute("stroke-width","5");previewLine.setAttribute("stroke-dasharray","8 5"); drawWires(); hint("Now tap the destination pin or hole — the wire stretches as far as you pull it."); return; }
+ if(wireDraft.from===node){wireDraft=null;previewLine=null;drawWires();return;}
+ pushHistory(); const colors=["#ef4444","#111827","#f59e0b","#3b82f6","#22c55e","#a855f7"]; const w={id:idc++,a:wireDraft.from,b:node,color:colors[state.wires.length%colors.length],stripA:false,stripB:false,powered:false,short:false}; state.wires.push(w); wireDraft=null;previewLine=null; sfx.wire(); drawWires(); reSimulate(true); hint(`Wire connected: ${nodeLabel(w.a)} → ${nodeLabel(w.b)}. With the Cutter tool you can strip its ends to copper.`); }
+/* svg wire interactions: cutter, delete, drag ends */
+svg.addEventListener("pointerdown",e=>{ const end=e.target.dataset.wireEnd, wid=e.target.dataset.wire; const p=worldPoint(e);
+ if(end){ const [id,which]=end.split(":"); const w=state.wires.find(x=>x.id==id); if(!w)return;
+  if(state.tool==="cutter"){ pushHistory(); if(which==="a")w.stripA=!w.stripA; else w.stripB=!w.stripB; (which==="a"?w.stripA:w.stripB)?sfx.scrape():sfx.wire(); drawWires(); hint((which==="a"?w.stripA:w.stripB)?"Insulation stripped back — bright copper showing at that end.":"Insulation restored at that end."); return; }
+  if(state.tool==="delete"){ pushHistory(); state.wires=state.wires.filter(x=>x.id!=id); sfx.pop(); drawWires(); reSimulate(false); return; }
+  /* drag end */ const move=ev=>{ const np=worldPoint(ev); w._dragPos=np; const NS="http://www.w3.org/2000/svg"; svg.querySelectorAll(".dragPrev").forEach(x=>x.remove()); const from=nodePos(which==="a"?w.b:w.a); const ln=document.createElementNS(NS,"line"); ln.setAttribute("class","dragPrev"); ln.setAttribute("x1",from.x);ln.setAttribute("y1",from.y);ln.setAttribute("x2",np.x);ln.setAttribute("y2",np.y);ln.setAttribute("stroke","#22d3ee");ln.setAttribute("stroke-width","4");ln.setAttribute("stroke-dasharray","6 4"); svg.appendChild(ln); };
+  const up=ev=>{ document.removeEventListener("pointermove",move); document.removeEventListener("pointerup",up); svg.querySelectorAll(".dragPrev").forEach(x=>x.remove()); const holeEl=document.elementFromPoint(ev.clientX,ev.clientY)?.closest?.(".hole"); const pinEl=document.elementFromPoint(ev.clientX,ev.clientY)?.closest?.(".pin"); let node=null; if(holeEl)node=holeEl.dataset.node; if(pinEl)node=`c${pinEl.closest(".comp").dataset.comp}:${pinEl.dataset.pin}`; if(node){ pushHistory(); w[which]=node; sfx.wire(); } drawWires(); reSimulate(true); };
+  document.addEventListener("pointermove",move); document.addEventListener("pointerup",up); return; }
+ if(wid){ const w=state.wires.find(x=>x.id==wid); if(!w)return; if(state.tool==="cutter"){ pushHistory(); state.wires=state.wires.filter(x=>x.id!=wid); sfx.snip(); drawWires(); reSimulate(false); hint("Snip! Wire cut out at the middle and removed."); } else if(state.tool==="delete"){ pushHistory(); state.wires=state.wires.filter(x=>x.id!=wid); sfx.pop(); drawWires(); reSimulate(false); } }
+});
+/* component drag, rotate ring, two-finger twist */
+function attachCompEvents(el,comp){ if(el._wired)return; el._wired=true;
+ el.addEventListener("pointerdown",e=>{ ac(); const def=findDef(comp.key); selectComp(comp.id); showInfo(comp.key,comp);
+  if(e.target.closest(".pin"))return; if(state.tool==="delete"){ pushHistory(); state.components=state.components.filter(c=>c.id!==comp.id); state.wires=state.wires.filter(w=>!w.a.startsWith(`c${comp.id}:`)&&!w.b.startsWith(`c${comp.id}:`)); el.remove(); sfx.pop(); drawWires(); reSimulate(false); return; }
+  if(state.tool!=="select")return;
+  const ringH=e.target.closest("[data-ring]");
+  const compPointers=new Map(); compPointers.set(e.pointerId,{x:e.clientX,y:e.clientY}); el.setPointerCapture(e.pointerId);
+  const start={x:comp.x,y:comp.y,cx:e.clientX,cy:e.clientY,rot:comp.rot,moved:false,angle0:Math.atan2(e.clientY-(el.getBoundingClientRect().top+el.getBoundingClientRect().height/2),e.clientX-(el.getBoundingClientRect().left+el.getBoundingClientRect().width/2))};
+  let startAngle=null, startRot=comp.rot;
+  const onMove=ev=>{ if(ev.pointerId!==e.pointerId&&!compPointers.has(ev.pointerId))compPointers.set(ev.pointerId,{x:ev.clientX,y:ev.clientY}); else compPointers.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+   if(compPointers.size===2){ const [q1,q2]=[...compPointers.values()]; const ang=Math.atan2(q2.y-q1.y,q2.x-q1.x)*180/Math.PI; if(startAngle===null){startAngle=ang;startRot=comp.rot;} else { let nr=startRot+(ang-startAngle); const snaps=[0,90,180,270,360]; for(const s of snaps)if(Math.abs(((nr%360)+360)%360-s)<7)nr=Math.round(nr/360)*360+s-(Math.round(nr/360)*360>nr?360:0),nr=startRot+(ang-startAngle),nr=(()=>{const m=((nr%360)+360)%360;return nr-m+(Math.abs(m-s)<7?s:m);})(); comp.rot=Math.round(nr); renderComp(comp); drawWires(); } return; }
+   const dx=(ev.clientX-start.cx)/state.zoom, dy=(ev.clientY-start.cy)/state.zoom; if(Math.hypot(dx,dy)>4)start.moved=true;
+   if(ringH){ const r=el.getBoundingClientRect(); const a=Math.atan2(ev.clientY-(r.top+r.height/2),ev.clientX-(r.left+r.width/2)); let nr=start.rot+(a-start.angle0)*180/Math.PI; const m=((nr%360)+360)%360; for(const s of [0,90,180,270])if(Math.abs(m-s)<7)nr=nr-m+s; comp.rot=Math.round(nr); el.style.transform=`rotate(${comp.rot}deg)`; drawWires(); return; }
+   if(start.moved){ comp.x=Math.round(start.x+dx); comp.y=Math.round(start.y+dy); el.style.left=comp.x+"px"; el.style.top=comp.y+"px"; drawWires(); } };
+  const onUp=ev=>{ compPointers.delete(ev.pointerId); el.removeEventListener("pointermove",onMove); el.removeEventListener("pointerup",onUp); el.removeEventListener("pointercancel",onUp); if(start.moved||compPointers.size===0){ if(ringH||comp.rot!==start.rot){} drawWires(); } if(!start.moved&&!ringH){/* tap = select only */} };
+  el.addEventListener("pointermove",onMove); el.addEventListener("pointerup",onUp); el.addEventListener("pointercancel",onUp);
+ }); }
+function selectComp(id){ state.selectedId=id; state.components.forEach(c=>{ const el=document.querySelector(`[data-comp="${c.id}"]`); if(el){el.classList.toggle("selected",c.id===id);} }); renderAllComps(); const comp=state.components.find(c=>c.id===id); if(comp)showInfo(comp.key,comp); }
+/* ============ INFO PANEL ============ */
+function showInfo(key,comp){ const def=findDef(key); if(!def)return; state.selectedPalette=comp?null:key; $("#infoTitle").textContent=def.n; const live=comp?liveStateText(comp):""; $("#infoBody").innerHTML=`<p>${def.d}</p><h4>Pins</h4><p>${def.pinsTxt}</p><p style="color:var(--muted);font-size:12px">Category: ${catOf(key)}${def.volts?` · ${def.volts}V`:""}${def.ohms?` · ${def.ohms} Ω`:""}</p><div class="fact">🌍 In the real world: ${def.f}</div>${live}<h4>Live controls</h4><div id="liveControls"></div><h4>Design name</h4><input id="designName" class="txtin" value="${($("#designName")?.value||"My Circuit").replace(/"/g,"")}" style="width:100%"/>`; buildLiveControls(comp); }
+function liveStateText(comp){ const d=findDef(comp.key); let t=""; if(d.type==="capacitor")t=`<p>⚡ State: <b>${comp.st.charged?"CHARGED — it can now power an LED on its own for a while":"discharged"}</b></p>`; if(comp.lit)t+=`<p>💡 State: <b>LIT / ACTIVE right now</b></p>`; if(comp.spinning)t+=`<p>🌀 State: <b>SPINNING ${comp.st.dir||""}</b></p>`; if(d.type==="switch")t+=`<p>State: <b>${comp.st.on?"ON (closed)":"OFF (open)"}</b></p>`; if(d.type==="solar")t+=`<p>☀️ Light: <b>${comp.st.on?"ON — making power":"OFF — no power"}</b></p>`; return t?`<h4>Live state</h4>${t}`:""; }
+function buildLiveControls(comp){ const box=document.getElementById("liveControls"); if(!box)return; if(!comp){ box.innerHTML=`<p style="color:var(--muted)">This is the shelf view. Place the part, then select it on the board for its switch / slider controls.</p>`; return; } const d=findDef(comp.key); let h="";
+ if(d.type==="switch")h=`<button class="tbtn" id="lcToggle">${comp.st.on?"Turn OFF (open)":"Turn ON (close)"}</button>`;
+ if(d.type==="solar")h=`<button class="tbtn" id="lcToggle">${comp.st.on?"☀️ Light is ON — tap for shade":"🌑 Light is OFF — tap for sun"}</button>`;
+ if(d.type==="button")h=`<button class="tbtn" id="lcHold">Hold to press</button><p style="font-size:12px;color:var(--muted)">Press and hold — the button only conducts while held.</p>`;
+ if(d.type==="pot")h=`<label>Knob: ${comp.st.val}%</label><input type="range" id="lcRange" min="0" max="100" value="${comp.st.val}">`;
+ if(d.type==="resistorVar")h=`<label>${comp.key==="ldr"?"Light level":"Level"}: ${comp.st.val}%</label><input type="range" id="lcRange" min="0" max="100" value="${comp.st.val}">`;
+ if(comp.key==="hcsr04")h=`<label>Distance to object: ${comp.st.val} cm</label><input type="range" id="lcRange" min="2" max="200" value="${comp.st.val}">`;
+ if(comp.key==="dht11")h=`<label>Temperature: ${comp.st.val} °C</label><input type="range" id="lcRange" min="0" max="50" value="${comp.st.val}"><label>Humidity: ${comp.st.val2}%</label><input type="range" id="lcRange2" min="0" max="100" value="${comp.st.val2}">`;
+ if(["soil","mq2","water"].includes(comp.key))h=`<label>Reading: ${comp.st.val}%</label><input type="range" id="lcRange" min="0" max="100" value="${comp.st.val}">`;
+ if(comp.key==="pir")h=`<button class="tbtn" id="lcToggle">${comp.st.on?"Motion detected (OUT HIGH)":"No motion — tap to simulate motion"}</button>`;
+ if(!h)h=`<p style="color:var(--muted)">No controls for this part — wire it up and run Power Check.</p>`;
+ box.innerHTML=h;
+ const tg=document.getElementById("lcToggle"); if(tg)tg.onclick=()=>{ comp.st.on=!comp.st.on; sfx.wire(); buildLiveControls(comp); showInfoRefresh(comp); reSimulate(false); };
+ const hd=document.getElementById("lcHold"); if(hd){ hd.onpointerdown=()=>{comp.st.on=true;reSimulate(false);}; hd.onpointerup=hd.onpointerleave=()=>{comp.st.on=false;reSimulate(false);}; }
+ const rg=document.getElementById("lcRange"); if(rg)rg.oninput=()=>{ comp.st.val=parseInt(rg.value); reSimulate(false); }; const rg2=document.getElementById("lcRange2"); if(rg2)rg2.oninput=()=>{ comp.st.val2=parseInt(rg2.value); };
+}
+function showInfoRefresh(comp){ const lt=liveStateText(comp); /* keep panel light: just rerun power visuals */ }
+/* ============ SIMULATION ============ */
+class DSU{ constructor(){this.p=new Map();} find(x){ if(!this.p.has(x))this.p.set(x,x); if(this.p.get(x)!==x)this.p.set(x,this.find(this.p.get(x))); return this.p.get(x);} union(a,b){ const ra=this.find(a),rb=this.find(b); if(ra!==rb)this.p.set(ra,rb);} }
+function buildNets(){ const dsu=new DSU();
+ state.boards.forEach(b=>{ for(let r=0;r<b.rows;r++){ const cells=[0,1,2,3,4].map(c=>holeId(b,"cell",r,c)); cells.forEach(c=>dsu.union(cells[0],c)); const cells2=[5,6,7,8,9].map(c=>holeId(b,"cell",r,c)); cells2.forEach(c=>dsu.union(cells2[0],c)); if(r>0){ ["railPL","railML","railPR","railMR"].forEach(k=>dsu.union(holeId(b,k,0),holeId(b,k,r))); } } });
+ state.wires.forEach(w=>dsu.union(w.a,w.b));
+ state.components.forEach(c=>{ const d=findDef(c.key); const pinNode=i=>`c${c.id}:${i}`;
+  if((d.type==="switch"||d.type==="button"||d.type==="fuse")&&c.st.on!==false&&d.pins.length>=2)dsu.union(pinNode(0),pinNode(1));
+  if(d.type==="fuse"&&d.pins.length>=2)dsu.union(pinNode(0),pinNode(1));
+  if(d.type==="ground"){} });
+ return dsu; }
+function pinNet(dsu,comp,i){ return dsu.find(`c${comp.id}:${i}`); }
+function activeSources(dsu){ const src=[]; state.components.forEach(c=>{ const d=findDef(c.key); if(d.type==="source")src.push({comp:c,plus:pinNet(dsu,c,0),minus:pinNet(dsu,c,1),volts:d.volts}); if(d.type==="solar"&&c.st.on)src.push({comp:c,plus:pinNet(dsu,c,0),minus:pinNet(dsu,c,1),volts:d.volts}); if(d.type==="board")src.push({comp:c,plus:pinNet(dsu,c,0),minus:pinNet(dsu,c,2>=d.pins.length?1:2),volts:d.volts}); if(d.type==="capacitor"&&c.st.charged)src.push({comp:c,plus:pinNet(dsu,c,0),minus:pinNet(dsu,c,1),volts:3,cap:true}); }); return src; }
+function loadEdges(dsu){ const edges=[]; state.components.forEach(c=>{ const d=findDef(c.key); const E=(a,b,kind,dir)=>edges.push({comp:c,a:pinNet(dsu,c,a),b:pinNet(dsu,c,b),kind,dir});
+ if(d.type==="led")E(0,1,"led",1); if(d.type==="diode")E(0,1,"diode",1); if(d.type==="resistor")E(0,1,"resistor"); if(d.type==="resistorVar")E(0,1,"resistor"); if(d.type==="pot")E(1,0,"resistor"); if(d.type==="motor"||d.type==="load"||d.type==="buzzer")E(0,1,d.type); if(d.type==="capacitor")E(0,1,"capacitor"); if(d.type==="transistor")E(2,0,"transistor"); if(d.type==="relay")E(0,1,"resistor"); }); return edges; }
+function findPath(edges,start,end,mustComp){ /* DFS over net graph */ const adj=new Map(); edges.forEach((e,i)=>{ if(!adj.has(e.a))adj.set(e.a,[]); if(!adj.has(e.b))adj.set(e.b,[]); adj.get(e.a).push({to:e.b,e:i,dir:1}); /* LED/diode only forward */ if(e.kind!=="led"&&e.kind!=="diode")adj.get(e.b).push({to:e.a,e:i,dir:-1}); });
+ const visited=new Set([start]); let result=null; function dfs(node,path){ if(result)return; if(node===end){ if(!mustComp||path.some(p=>edges[p.e].comp.id===mustComp)){result=[...path];} return; } (adj.get(node)||[]).forEach(step=>{ if(result)return; if(path.some(p=>p.e===step.e))return; dfs(step.to,[...path,step]); }); } dfs(start,[]); return result; }
+function reSimulate(live){ const dsu=buildNets(); const edges=loadEdges(dsu); const sources=activeSources(dsu);
+ state.wires.forEach(w=>{w.powered=false;w.short=false;}); state.components.forEach(c=>{c.lit=false;c.spinning=false;});
+ let shortInfo=null, overInfo=null, anyActive=false, messages=[];
+ /* short: plus net == minus net via unions (wires/board/closed switches only) */
+ for(const s of sources){ if(s.cap)continue; if(s.plus===s.minus){ /* trace: find a wire whose removal... simply mark wires that connect nodes in the shorted net */ const shortWires=state.wires.filter(w=>dsu.find(w.a)===s.plus||dsu.find(w.b)===s.plus); shortWires.forEach(w=>w.short=true); shortInfo={src:s,wires:shortWires}; break; } }
+ if(shortInfo){ const last=shortInfo.wires[shortInfo.wires.length-1]; verdict(`⚠️ SHORT CIRCUIT — traced in orange: ${findDef(shortInfo.src.comp.key).n} + is wired straight to − with no load in between. ${last?`The wire ${nodeLabel(last.a)} → ${nodeLabel(last.b)} is on the shorting path.`:""} Fix: remove that wire or put a load (LED + resistor, motor, bulb) in between.`,true,false); drawWires(); state.success=false; updatePdf(); return {short:true}; }
+ /* per source paths */
+ sources.forEach(s=>{ edges.forEach(e=>{ const path=findPath(edges,s.plus,s.minus,e.comp.id); if(!path)return; const hasResistor=path.some(p=>edges[p.e].kind==="resistor"); const hasLoad=path.some(p=>["led","motor","load","buzzer"].includes(edges[p.e].kind));
+  if(e.kind==="led"&&path.some(p=>p.e===edges.indexOf(e))){ const ledC=e.comp; if(ledC.burnt)return; const dimFactor=e.comp.key&&findDef(e.comp.key).type==="led"?1:1; ledC.lit=true; anyActive=true; state.wires.forEach(w=>{ if(path.length) { /* mark wires whose nets lie on path roughly: wires touching source nets */ } });
+   if(!hasResistor&&s.volts>3){ overInfo=ledC; ledC.burnt=true; ledC.lit=false; messages.push(`${findDef(ledC.key).n} had NO resistor in its loop on ${s.volts}V — over-current! It has burnt out. Replace it (delete + place a new one) and add a resistor.`); }
+  }
+  if(e.kind==="motor"&&path.some(p=>p.e===edges.indexOf(e))){ e.comp.spinning=true; e.comp.st.dir = (pinNet(dsu,e.comp,0)===s.plus)?"forward":"reversed"; anyActive=true; }
+  if((e.kind==="load"||e.kind==="buzzer")&&path.some(p=>p.e===edges.indexOf(e))){ e.comp.lit=true; anyActive=true; if(e.kind==="buzzer"&&live)blip(880,.15,.05); }
+  if(e.kind==="capacitor"&&path.some(p=>p.e===edges.indexOf(e))){ if(!e.comp.st.charged){e.comp.st.charged=true; messages.push(`${findDef(e.comp.key).n} charged up.`);} }
+ }); });
+ /* mark powered wires: wires whose both nets appear in any active path endpoints — use simple heuristic: wires connected (via dsu) to a lit component pin or source pin */
+ const poweredNets=new Set(); sources.forEach(s=>{poweredNets.add(s.plus);poweredNets.add(s.minus);}); state.components.forEach(c=>{ if(c.lit||c.spinning){ const d=findDef(c.key); d.pins.forEach((p,i)=>poweredNets.add(dsu.find(`c${c.id}:${i}`))); } });
+ state.wires.forEach(w=>{ if(poweredNets.has(dsu.find(w.a))&&poweredNets.has(dsu.find(w.b)))w.powered=true; });
+ /* reversed LED hint */
+ state.components.forEach(c=>{ const d=findDef(c.key); if(d.type==="led"&&!c.lit&&!c.burnt){ const aNet=pinNet(dsu,c,0),kNet=pinNet(dsu,c,1); sources.forEach(s=>{ if(kNet===s.plus||aNet===s.minus) messages.push(`${d.n} looks REVERSED — its + leg is towards −. LEDs only conduct one way; swap its legs.`); }); } });
+ state.components.forEach(renderComp); drawWires();
+ const successNow=!shortInfo&&!overInfo&&anyActive;
+ if(live||successNow||overInfo||messages.length){ if(overInfo){ verdict("❌ Power check FAILED — "+messages.join(" "),true,false); } else if(successNow){ verdict("✅ SUCCESS — circuit works! Current is flowing (watch the yellow dots). The step-by-step PDF is unlocked.",false,true); if(live)sfx.good(); } else if(messages.length){ verdict("ℹ️ "+messages.join(" "),false,false); } else if(live){ verdict("Nothing lit up. Check: is the loop complete (+ → load → −)? Is the switch ON? Is the solar light ON? Is the LED the right way round?",false,false); } }
+ state.success=successNow&&!overInfo; updatePdf(); return {short:false,success:state.success}; }
+function updatePdf(){ $("#pdfBtn").disabled=!state.success; }
+$("#powerBtn").onclick=()=>{ pushHistory(); const r=reSimulate(true); if(r.success)hint("Design verified successful — download your build PDF!"); };
+/* ============ BOARD SIZE ============ */
+$("#boardSize").onchange=e=>{ const v=e.target.value; let rows; if(v==="custom"){ rows=Math.min(100,Math.max(10,parseInt($("#customRows").value)||30)); } else rows=rowsForSize(v); pushHistory(); const b=state.boards[0]; if(!b){addBoard(rows,90,90);return;} const overflow=state.components.filter(c=>{ const g=boardGeom({...b,rows}); return c.x>b.x&&c.x<b.x+430&&c.y>b.y&&c.y>b.y+g.h; }); b.rows=rows; renderBoard(b); if(overflow.length){ overflow.forEach((c,i)=>{ c.x=620+ (i%3)*170; c.y=120+Math.floor(i/3)*130; }); renderAllComps(); verdict(`Board resized to ${rows} rows. ${overflow.length} part(s) no longer fitted, so they were moved to the bench area on the right — nothing was deleted.`,false,false); } else verdict(`Breadboard resized: ${rows} rows. Hole addresses updated.`,false,true); drawWires(); };
+$("#customRows").onchange=()=>{ if($("#boardSize").value==="custom")$("#boardSize").onchange({target:$("#boardSize")}); };
+$("#addBoardBtn").onclick=()=>{ pushHistory(); const rows=rowsForSize($("#boardSize").value==="custom"?"400":$("#boardSize").value); addBoard(rows,90,state.boards.length? state.boards[state.boards.length-1].y+boardGeom(state.boards[state.boards.length-1]).h+160:90); sfx.snap(); hint("Extra breadboard added below. Scroll/pan the bench to reach it."); };
+$("#clearBtn").onclick=()=>{ pushHistory(); state.components=[];state.wires=[];state.success=false; compLayer.innerHTML=""; drawWires(); updatePdf(); verdict("Bench cleared.",false,false); };
+$("#soundBtn").onclick=e=>{ state.sound=!state.sound; e.target.textContent=state.sound?"🔊 Sound ON":"🔇 Sound OFF"; if(state.sound)sfx.snap(); };
+$("#collapseInfo").onclick=()=>{ const b=$("#infoBody"); b.style.display=b.style.display==="none"?"block":"none"; };
+/* ============ SAVE / LOAD ============ */
+function serialize(){ return JSON.stringify({name:$("#designName")?.value||"My Circuit",components:state.components,wires:state.wires,boards:state.boards}); }
+function restore(json){ const s=JSON.parse(json); state.components=s.components;state.wires=s.wires;state.boards=s.boards; idc=Math.max(100,...state.components.map(c=>c.id+1),...state.wires.map(w=>w.id+1),...state.boards.map(b=>b.id+1)); boardLayer.innerHTML=""; state.boards.forEach(renderBoard); renderAllComps(); reSimulate(false); }
+$("#saveBtn").onclick=()=>{ const name=$("#designName")?.value||"My Circuit"; const all=JSON.parse(localStorage.getItem("vcd-designs")||"{}"); all[name]={data:serialize(),at:Date.now()}; localStorage.setItem("vcd-designs",JSON.stringify(all)); verdict(`Saved “${name}” in this browser.`,false,true); sfx.good(); };
+$("#loadBtn").onclick=()=>{ const all=JSON.parse(localStorage.getItem("vcd-designs")||"{}"); const list=$("#designList"); list.innerHTML=Object.keys(all).length?"":"<p style='color:var(--muted)'>No saved designs yet.</p>"; Object.entries(all).forEach(([name,v])=>{ const row=document.createElement("div");row.className="designRow"; row.innerHTML=`<span>${name}<br><small style="color:var(--muted)">${new Date(v.at).toLocaleString()}</small></span><span><button class="tbtn">Load</button> <button class="tbtn warn">Delete</button></span>`; row.querySelectorAll("button")[0].onclick=()=>{ pushHistory(); restore(v.data); $("#designModal").classList.remove("open"); verdict(`Loaded “${name}”.`,false,true); }; row.querySelectorAll("button")[1].onclick=()=>{ delete all[name]; localStorage.setItem("vcd-designs",JSON.stringify(all)); row.remove(); }; list.appendChild(row); }); $("#designModal").classList.add("open"); };
+/* ============ EXAMPLE ============ */
+$("#exampleBtn").onclick=()=>{ pushHistory(); state.components=[];state.wires=[]; compLayer.innerHTML=""; if(!state.boards.length)addBoard(30,90,90); const b=state.boards[0];
+ const solar=placeComponent("solar",b.x+90,b.y-10); const diode=placeComponent("d5817",b.x+250,b.y+150); const supercap=placeComponent("supercap",b.x+360,b.y+230); const res=placeComponent("r100",b.x+250,b.y+320); const led=placeComponent("ledR",b.x+360,b.y+330); const motor=placeComponent("motor",b.x+90,b.y+330);
+ const N=(c,i)=>`c${c.id}:${i}`; const H=(k,r,c)=>holeId(b,k,r,c);
+ const mk=(a,bb,col,sa,sb)=>state.wires.push({id:idc++,a,b:bb,color:col,stripA:!!sa,stripB:!!sb,powered:false,short:false});
+ mk(N(solar,0),H("railPL",0),"#ef4444",true,false); mk(N(solar,1),H("railML",0),"#111827",true,false);
+ mk(H("railPL",5),N(diode,0),"#ef4444"); mk(N(diode,1),H("cell",5,2),"#ef4444"); mk(H("cell",5,0),N(supercap,0),"#ef4444");
+ mk(H("railML",5),N(supercap,1),"#111827"); mk(H("cell",8,0),N(res,0),"#f59e0b"); mk(N(res,1),N(led,0),"#f59e0b"); mk(N(led,1),H("railML",10),"#111827");
+ mk(H("railPL",12),N(motor,0),"#ef4444"); mk(N(motor,1),H("railML",12),"#111827");
+ renderAllComps(); solar.st.on=true; verdict("Wind + Solar hybrid loaded (solar side shown; the DC motor doubles as the wind generator). Turn the solar Light ON in its Live Controls, then run Power Check.",false,true); hint("Example loaded — select the Solar Panel and check its light is ON, then press Power Check."); };
+/* ============ PDF ============ */
+$("#pdfBtn").onclick=()=>{ if(!state.success)return; const name=($("#designName")?.value||"My Circuit").replace(/[^\w\- ]/g,"").trim()||"My Circuit"; const counts={}; state.components.forEach(c=>{const n=findDef(c.key).n;counts[n]=(counts[n]||0)+1;});
+ const steps=[]; state.components.forEach((c,i)=>{ const d=findDef(c.key); steps.push(`Place the ${d.n} on the bench at position (${c.x}, ${c.y})${c.rot?`, rotated ${c.rot}° (sideways placement — match the picture)`:''}. Push its pins in firmly until they click.`); });
+ state.wires.forEach((w,i)=>{ steps.push(`Run a wire from ${nodeLabel(w.a)} to ${nodeLabel(w.b)}.${w.stripA||w.stripB?" Strip the insulation back at "+(w.stripA&&w.stripB?"BOTH ends":w.stripA?"the first end":"the second end")+" so bright copper shows before plugging in.":""}`); });
+ const notes=[]; state.components.forEach(c=>{ const d=findDef(c.key); if(d.type==="led")notes.push(`${d.n}: long leg is +, short leg/flat side is −. Always with a resistor.`); if(d.type==="diode")notes.push(`${d.n}: silver band (cathode) points towards the + side of the load; current flows anode → cathode only.`); if(d.type==="capacitor")notes.push(`${d.n}: + leg to the + rail side, − (striped) leg to −. Never exceed its voltage rating.`); if(d.type==="solar")notes.push(`Solar panel: red wire +, black wire −. Works only in light.`); });
+ try{ const {jsPDF}=window.jspdf; const doc=new jsPDF(); let y=18; const line=(t,sz,bold)=>{ doc.setFontSize(sz||11); doc.setFont("helvetica",bold?"bold":"normal"); const lines=doc.splitTextToSize(t,180); lines.forEach(l=>{ if(y>280){doc.addPage();y=18;} doc.text(l,15,y); y+=sz*.62+2; }); };
+ doc.setFillColor(11,30,58); doc.rect(0,0,210,34,"F"); doc.setTextColor(255,255,255); doc.setFontSize(18); doc.setFont("helvetica","bold"); doc.text(name,15,15); doc.setFontSize(10); doc.setFont("helvetica","normal"); doc.text("Step-by-step build sheet — generated from your virtual design",15,23); doc.text(`Board: ${state.boards.map(b=>b.rows+" rows").join(", ")||"bench only"} · Power check: PASSED · ${new Date().toLocaleString()}`,15,29); doc.setTextColor(20,20,20); y=44;
+ line("YOUR FINISHED BOARD (schematic summary)",13,true); state.components.forEach(c=>{ const d=findDef(c.key); line(`• ${d.n} at (${c.x}, ${c.y}) rotated ${c.rot}° — pins: ${d.pins.map(p=>p.name||"pin").join(", ")}`,10); }); y+=3;
+ line("PARTS LIST",13,true); Object.entries(counts).forEach(([n,q])=>line(`${q} × ${n}`,11)); y+=3;
+ line("BUILD IT — STEP BY STEP",13,true); steps.forEach((s,i)=>line(`${i+1}. ${s}`,11)); y+=3;
+ if(notes.length){ line("POLARITY CHECKS — READ BEFORE POWERING",13,true); [...new Set(notes)].forEach(n=>line("• "+n,11)); y+=3; }
+ line("POWER CHECK RESULT: PASSED — the virtual circuit lit/ran with no short circuit and no over-current fault. Build it for real in the order above, then connect power LAST.",11,true);
+ doc.save(name.replace(/\s+/g,"-")+".pdf"); verdict("PDF downloaded — check your Downloads folder.",false,true);
+ }catch(err){ const blob=new Blob([`<h1>${name}</h1><h2>Parts</h2>${Object.entries(counts).map(([n,q])=>`${q} × ${n}`).join("<br>")}<h2>Steps</h2>${steps.map((s,i)=>`${i+1}. ${s}`).join("<br>")}`],{type:"text/html"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name+".html"; a.click(); }
+};
+/* ============ INIT ============ */
+buildPalette(); addBoard(30,90,90); applyTransform(); showInfo("ledR",null); hint("Tap a part on the shelf, then tap the bench to place it. Try the Wind + Solar Example button for a ready-made circuit.");
+function fitLayout(){ document.querySelector(".layout").style.top=document.querySelector(".topbar").offsetHeight+"px"; } window.addEventListener("resize",fitLayout); fitLayout(); setTimeout(fitLayout,300);
+</script>
+</body>
+</html>
